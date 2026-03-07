@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>3D 赛博像素赛车 - 极品内饰飞天版</title>
+    <title>3D 赛博像素赛车 - 宇宙跃迁完整版</title>
     <style>
         body {
             margin: 0; padding: 0; background-color: #05000a; color: #fff;
@@ -61,7 +61,7 @@
 <body>
 
     <h1>✦ NEON CITY RACER ✦</h1>
-    <p>躲避/护盾撞飞敌人 | 吃道具极速飞天 | V键 切换视角</p>
+    <p>躲避/撞飞敌人 | 吃火箭入云 | 吃翅膀跃迁宇宙 | V键切视角</p>
 
     <div id="game-wrapper">
         <canvas id="gameCanvas" width="400" height="300"></canvas>
@@ -108,19 +108,30 @@
         let animationId, gameState = 'START';  
         let camZ = 0, gameSpeed = 7, score = 0, bonusScore = 0, frameCount = 0;
         let carX = 0, carVX = 0, playerY = 0, playerZOffset = 80;   
-        let obstacles = [], props =[], lastPropZ = 0;
+        let obstacles =[], props =[], lastPropZ = 0;
         let stars =[], buildings =[];
 
-        // 难度与道具状态
+        // 难度与状态
         let difficulty = 'racing';
         let baseSpawnRate = 80, speedCap = 16;
         let isFlying = false, flyTimer = 0;
+        let isSpace = false, spaceTimer = 0;
         let isShielded = false, shieldTimer = 0;
         let speedTimer = 0; 
 
         let isFirstPerson = false;
         let renderCamX = 0, renderCamY = -60, renderCamZ = 0;
         const keys = { a: false, d: false };
+
+        // 场景管理器配置表
+        const SCENES = {
+            city: { skyTop:['#0055ff', '#1a0033', '#020008'], skyBot:['#87cefa', '#ff0055', '#0a0011'], roadD:['#555555', '#302030', '#0a0011'], roadL:['#666666', '#402a40', '#11001a'], line: ['#ffffff', '#ffaaaa', '#00ffff'], bHueMin: 260, bHueMax: 340 },
+            desert: { skyTop:['#ff8c00', '#8b4513', '#050200'], skyBot:['#ffd700', '#ff4500', '#1a0500'], roadD:['#c2b280', '#5c4033', '#0a0500'], roadL:['#d2b48c', '#8b4513', '#110a00'], line:['#ffffff', '#ffaa00', '#ff00ff'], bHueMin: 20, bHueMax: 40 },
+            ruins: { skyTop:['#556b2f', '#2f4f4f', '#051005'], skyBot:['#8fbc8f', '#556b2f', '#0a1a0a'], roadD:['#444444', '#222233', '#050a05'], roadL:['#555555', '#333344', '#0a100a'], line: ['#aaaaaa', '#555566', '#00ff00'], bHueMin: 100, bHueMax: 140 },
+            factory: { skyTop:['#483d8b', '#4b0082', '#0a0011'], skyBot:['#9370db', '#800080', '#1a0022'], roadD:['#333333', '#2a1525', '#0a0510'], roadL:['#444444', '#3a1f33', '#110a15'], line:['#ffff00', '#ff00ff', '#00ffff'], bHueMin: 280, bHueMax: 320 },
+            coast: { skyTop:['#00bfff', '#000080', '#00001a'], skyBot:['#20b2aa', '#4b0082', '#001a33'], roadD:['#2f4f4f', '#191970', '#000a11'], roadL:['#40e0d0', '#00008b', '#001122'], line: ['#ffffff', '#00ffff', '#00ffff'], bHueMin: 180, bHueMax: 220 }
+        };
+        let currentSceneKey = 'city';
 
         // 难度同步与选择逻辑
         document.querySelectorAll('.diff-btn').forEach(btn => {
@@ -182,13 +193,21 @@
         }
 
         function initEnvironment() {
-            stars =[]; for (let i = 0; i < 80; i++) stars.push({ rawX: Math.random()*W*2, y: Math.random()*(HORIZON-20)-100, s: Math.random()*1.5 });
+            let sceneKeys = Object.keys(SCENES);
+            currentSceneKey = sceneKeys[Math.floor(Math.random() * sceneKeys.length)];
+            let sConf = SCENES[currentSceneKey];
+
+            stars =[]; 
+            for (let i = 0; i < 120; i++) {
+                stars.push({ rawX: Math.random()*W*2, y: (Math.random()*HORIZON*2)-HORIZON, s: Math.random()*1.5+0.5 });
+            }
             buildings =[];
             let bx = -W * 2; 
             while (bx < W * 3) {
-                let bw = 25+Math.random()*50, bh = 30+Math.random()*80, bDepth = 15+Math.random()*20, hue = Math.random()>0.5?280:320;
+                let bw = 25+Math.random()*50, bh = 30+Math.random()*80, bDepth = 15+Math.random()*20;
+                let hue = sConf.bHueMin + Math.random()*(sConf.bHueMax - sConf.bHueMin);
                 let windows =[];
-                for (let wy=10; wy<bh-10; wy+=12) for (let wx=5; wx<bw-5; wx+=8) if (Math.random()>0.6) windows.push({x:wx, y:wy, color:Math.random()>0.5?'#ffea00':'#0ff'});
+                for (let wy=10; wy<bh-10; wy+=12) for (let wx=5; wx<bw-5; wx+=8) if (Math.random()>0.6) windows.push({x:wx, y:wy, color:Math.random()>0.5?'#ffea00':'#00ffff'});
                 buildings.push({ x: bx, w: bw, h: bh, d: bDepth, hue: hue, windows: windows });
                 bx += bw + 5 + Math.random() * 30;
             }
@@ -205,49 +224,58 @@
             else if (difficulty === 'madhouse') { gameSpeed = 9; speedCap = 22; baseSpawnRate = 40; }
 
             camZ = 0; score = 0; bonusScore = 0; frameCount = 0; 
-            carX = 0; carVX = 0; playerY = 0; isFlying = false; isShielded = false; speedTimer = 0; lastPropZ = 0;
-            obstacles = []; props =[];
+            carX = 0; carVX = 0; playerY = 0; isFlying = false; isSpace = false; isShielded = false; 
+            flyTimer = 0; spaceTimer = 0; shieldTimer = 0; speedTimer = 0; lastPropZ = 0;
+            obstacles =[]; props =[];
             initEnvironment();
             if (animationId) cancelAnimationFrame(animationId);
             loop();
         }
 
-        const skyTopColors  =['#0055ff', '#1a0033', '#020008'];
-        const skyBotColors  =['#87cefa', '#ff0055', '#0a0011'];
         function getEnvColors(timeCycle) {
+            let s = SCENES[currentSceneKey];
             let cycle = Math.min(timeCycle, 2.0), phase = Math.floor(cycle), t = cycle - phase;
             if (cycle >= 2.0) { phase = 2; t = 0; }
             let nextPhase = (phase + 1) % 3;
             let nightFactor = cycle >= 1.5 ? Math.min(1, (cycle - 1.5) * 2) : 0;
             return {
-                skyTop: lerpColor(skyTopColors[phase], skyTopColors[nextPhase], t),
-                skyBot: lerpColor(skyBotColors[phase], skyBotColors[nextPhase], t),
-                roadD:  lerpColor(['#555', '#302030', '#0a0011'][phase],['#555', '#302030', '#0a0011'][nextPhase], t),
-                roadL:  lerpColor(['#666', '#402a40', '#11001a'][phase],['#666', '#402a40', '#11001a'][nextPhase], t),
-                line:   lerpColor(['#fff', '#ffaaaa', '#0ff'][phase],['#fff', '#ffaaaa', '#0ff'][nextPhase], t),
+                skyTop: lerpColor(s.skyTop[phase], s.skyTop[nextPhase], t),
+                skyBot: lerpColor(s.skyBot[phase], s.skyBot[nextPhase], t),
+                roadD:  lerpColor(s.roadD[phase], s.roadD[nextPhase], t),
+                roadL:  lerpColor(s.roadL[phase], s.roadL[nextPhase], t),
+                line:   lerpColor(s.line[phase], s.line[nextPhase], t),
                 nightFactor: nightFactor,
                 sunY: cycle < 1 ? (HORIZON - 70 + cycle*40) : (HORIZON - 30 + (cycle-1)*80)
             };
         }
 
         function drawBackground(env, bAlpha, flyProgress) {
-            let skyGrad = ctx.createLinearGradient(0, 0, 0, HORIZON);
-            skyGrad.addColorStop(0, env.skyTop); skyGrad.addColorStop(1, env.skyBot);
-            ctx.fillStyle = skyGrad; ctx.fillRect(0, 0, W, HORIZON);
+            if (isSpace) {
+                ctx.fillStyle = '#000000'; ctx.fillRect(0, 0, W, H);
+            } else {
+                let skyGrad = ctx.createLinearGradient(0, 0, 0, HORIZON);
+                skyGrad.addColorStop(0, env.skyTop); skyGrad.addColorStop(1, env.skyBot);
+                ctx.fillStyle = skyGrad; ctx.fillRect(0, 0, W, HORIZON);
+            }
 
             let panX = -renderCamX * 0.4; 
-            if (env.nightFactor > 0) {
+            
+            // 星空：宇宙维度时全部亮起，否则随夜晚亮起
+            let starAlpha = isSpace ? 1 : env.nightFactor;
+            if (starAlpha > 0) {
                 stars.forEach(s => {
                     let sx = (s.rawX + panX * 0.1) % (W*2) - W/2;
                     let drawY = s.y - renderCamY*0.5; 
-                    if(drawY < HORIZON) {
-                        ctx.fillStyle = `rgba(255, 255, 255, ${env.nightFactor * (0.5 + 0.5 * Math.sin(frameCount*0.05 + s.rawX))})`;
+                    // 宇宙里星星可以布满全屏，地面时只在地平线以上
+                    if(isSpace || drawY < HORIZON) {
+                        ctx.fillStyle = `rgba(255, 255, 255, ${starAlpha * (0.5 + 0.5 * Math.sin(frameCount*0.05 + s.rawX))})`;
                         ctx.fillRect(sx, drawY, s.s, s.s);
                     }
                 });
             }
 
-            if (env.sunY - renderCamY*0.1 < HORIZON + 30) {
+            // 太阳 (宇宙中不显示)
+            if (!isSpace && env.sunY - renderCamY*0.1 < HORIZON + 30) {
                 let sy = env.sunY - renderCamY*0.1;
                 let sunGrad = ctx.createLinearGradient(0, sy-40, 0, sy+40);
                 sunGrad.addColorStop(0, '#0ff'); sunGrad.addColorStop(1, '#FF007F'); 
@@ -255,7 +283,8 @@
                 ctx.fillStyle = env.skyBot; for (let i=0; i<6; i++) ctx.fillRect(W/2-50+panX*0.1, sy+10-i*8, 100, 2+i*0.5);
             }
 
-            if (flyProgress > 0) {
+            // 云海
+            if (flyProgress > 0 && !isSpace) {
                 ctx.globalAlpha = flyProgress;
                 let cloudBase = env.nightFactor > 0.5 ? '#1a2b3c' : '#ffffff';
                 let cloudShadow = env.nightFactor > 0.5 ? '#0c1520' : '#e0e8f0';
@@ -275,7 +304,8 @@
                 ctx.globalAlpha = 1.0;
             }
 
-            if (bAlpha > 0) {
+            // 建筑渐隐
+            if (bAlpha > 0 && !isSpace) {
                 ctx.globalAlpha = bAlpha;
                 let bOffset = Math.max(0, -renderCamY - 60); 
                 buildings.forEach(b => {
@@ -308,7 +338,7 @@
         }
 
         function drawRoad(env, bAlpha) {
-            if (bAlpha <= 0) return; 
+            if (bAlpha <= 0 || isSpace) return; 
             ctx.globalAlpha = bAlpha;
             ctx.fillStyle = '#0a0a0a'; ctx.fillRect(0, HORIZON, W, H);
             let startZ = Math.floor((renderCamZ + DRAW_DIST) / SEG_LENGTH) * SEG_LENGTH;
@@ -336,6 +366,9 @@
             ctx.globalAlpha = 1.0;
         }
 
+        // ============================
+        // 核心3D绘图
+        // ============================
         function drawTrue3DBox(x, y, z, w, h, L, colorBody, colorSide, colorTop, tiltX, env, rotZ=0) {
             let bp = project(x + tiltX, y, z); 
             let fp = project(x + tiltX, y, z + L); 
@@ -343,6 +376,7 @@
 
             let rotOffset = rotZ * bp.scale * 15;
             let bw = w * bp.scale, bh = h * bp.scale, fw = w * fp.scale, fh = h * fp.scale;
+            
             ctx.fillStyle = colorTop;
             ctx.beginPath(); ctx.moveTo(bp.sx - bw/2 + rotOffset, bp.sy - bh); ctx.lineTo(bp.sx + bw/2 + rotOffset, bp.sy - bh);
             ctx.lineTo(fp.sx + fw/2 + rotOffset, fp.sy - fh); ctx.lineTo(fp.sx - fw/2 + rotOffset, fp.sy - fh); ctx.fill();
@@ -368,8 +402,9 @@
             let bCol = `hsl(${hue},${sat}%,45%)`, sCol = `hsl(${hue},${sat}%,25%)`, tCol = `hsl(${hue},${sat}%,60%)`;
             let glCol = `hsl(190,80%,${30+env.nightFactor*60}%)`, glSide = `hsl(190,80%,${15+env.nightFactor*40}%)`;
 
+            // 只有落地且没有旋转时绘制阴影
             let pBL = project(x-w/2, y, z), pBR = project(x+w/2, y, z), pFL = project(x-w/2, y, z+L1), pFR = project(x+w/2, y, z+L1);
-            if (pBL && pBR && pFL && pFR && rotZ===0) {
+            if (pBL && pBR && pFL && pFR && rotZ===0 && y >= -10 && !isSpace) {
                 ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.beginPath(); ctx.moveTo(pBL.sx, pBL.sy); ctx.lineTo(pBR.sx, pBR.sy);
                 ctx.lineTo(pFR.sx, pFR.sy); ctx.lineTo(pFL.sx, pFL.sy); ctx.fill();
             }
@@ -404,7 +439,7 @@
                         ctx.stroke(); ctx.setLineDash([]);
                     }
                 }
-                if (isFlying || speedTimer > 0) { 
+                if (isFlying || isSpace || speedTimer > 0) { 
                     let pJet = project(x, y-5, z);
                     if (pJet) {
                         ctx.fillStyle = '#f50'; ctx.beginPath(); 
@@ -416,79 +451,91 @@
             }
         }
 
-        // 【大改：全新卡车模型】
+        // 精美卡车与小猪
         function draw3DTruck(x, y, z, hue, tiltX, env, rotZ=0) {
             let tilt = tiltX * 3;
             let bCol = `hsl(${hue},30%,40%)`, sCol = `hsl(${hue},30%,20%)`, tCol = `hsl(${hue},30%,50%)`;
             
-            // 底盘
             drawTrue3DBox(x, y-4, z, 38, 8, 70, '#222', '#111', '#333', tilt, env, rotZ); 
-            // 独立车头
             drawTrue3DBox(x, y-12, z+45, 38, 22, 25, bCol, sCol, tCol, tilt, env, rotZ); 
-            // 挡风玻璃
-            drawTrue3DBox(x, y-20, z+70, 34, 12, 1, '#48c', '#246', '#8cf', tilt, env, rotZ); // 前窗
-            drawTrue3DBox(x, y-20, z+45, 34, 10, 1, '#111', '#000', '#222', tilt, env, rotZ); // 后窗
+            drawTrue3DBox(x, y-20, z+70, 34, 12, 1, '#48c', '#246', '#8cf', tilt, env, rotZ); 
+            drawTrue3DBox(x, y-20, z+45, 34, 10, 1, '#111', '#000', '#222', tilt, env, rotZ); 
             
-            // 货厢护栏
             drawTrue3DBox(x-17, y-12, z, 4, 14, 45, bCol, sCol, tCol, tilt, env, rotZ); 
             drawTrue3DBox(x+17, y-12, z, 4, 14, 45, bCol, sCol, tCol, tilt, env, rotZ); 
             drawTrue3DBox(x, y-12, z, 38, 14, 2, bCol, sCol, tCol, tilt, env, rotZ); 
 
-            // 黑轮胎 (6轮独立)
             let wCol = '#050505', wSide = '#000', wTop = '#111';
             drawTrue3DBox(x-18, y, z+10, 8, 14, 14, wCol, wSide, wTop, tilt, env, rotZ);
             drawTrue3DBox(x+18, y, z+10, 8, 14, 14, wCol, wSide, wTop, tilt, env, rotZ);
             drawTrue3DBox(x-18, y, z+55, 8, 14, 14, wCol, wSide, wTop, tilt, env, rotZ);
             drawTrue3DBox(x+18, y, z+55, 8, 14, 14, wCol, wSide, wTop, tilt, env, rotZ);
 
-            // 小猪猪
             let pBack = project(x+tilt + rotZ*5, y-14, z+25);
             if(pBack) {
                 let w = 20*pBack.scale, sx = pBack.sx, sy = pBack.sy;
-                ctx.fillStyle = '#ff99cc'; ctx.fillRect(sx - w/2, sy-w, w, w); 
-                ctx.fillStyle = '#000'; ctx.fillRect(sx - w/4, sy-w+w/4, w/5, w/5); ctx.fillRect(sx + w/10, sy-w+w/4, w/5, w/5); 
-                ctx.fillStyle = '#ff6699'; ctx.fillRect(sx - w/4, sy-w/2, w/2, w/3); 
+                ctx.fillStyle = '#ff66b2'; // 猪耳朵
+                ctx.fillRect(sx - w*0.6, sy - w*1.1, w*0.4, w*0.5); ctx.fillRect(sx + w*0.2, sy - w*1.1, w*0.4, w*0.5);
+                ctx.fillStyle = '#ff99cc'; ctx.fillRect(sx - w/2, sy-w, w, w); // 脸
+                ctx.fillStyle = '#ff6699'; ctx.fillRect(sx - w*0.35, sy-w*0.5, w*0.7, w*0.4); // 鼻子
+                ctx.fillStyle = '#cc0055'; ctx.fillRect(sx - w*0.2, sy-w*0.4, w*0.15, w*0.2); ctx.fillRect(sx + w*0.05, sy-w*0.4, w*0.15, w*0.2); // 鼻孔
+                ctx.fillStyle = '#000'; ctx.fillRect(sx - w*0.3, sy-w*0.8, w*0.2, w*0.2); ctx.fillRect(sx + w*0.1, sy-w*0.8, w*0.2, w*0.2); // 眼睛
             }
         }
 
-        // 【大改：流线前倾摩托车】
         function draw3DMotor(x, y, z, hue, tiltX, env, rotZ=0) {
             let tilt = tiltX * 4; 
             let mCol = `hsl(${hue},80%,40%)`, mSide = `hsl(${hue},80%,20%)`, mTop = `hsl(${hue},80%,50%)`;
-
-            drawTrue3DBox(x, y, z, 4, 12, 12, '#050505', '#000', '#111', tilt, env, rotZ); // 后轮
-            drawTrue3DBox(x, y, z+26, 4, 12, 12, '#050505', '#000', '#111', tilt, env, rotZ); // 前轮
-            drawTrue3DBox(x, y-6, z+8, 8, 12, 20, mCol, mSide, mTop, tilt, env, rotZ); // 流线车身
-            drawTrue3DBox(x, y-10, z+28, 6, 8, 4, '#fff', '#ccc', '#fff', tilt, env, rotZ); // 大灯
-            
-            drawTrue3DBox(x, y-18, z+12, 10, 14, 14, '#111', '#000', '#222', tilt, env, rotZ); // 趴伏赛车手
-            drawTrue3DBox(x, y-28, z+18, 8, 8, 8, '#222', '#111', '#333', tilt, env, rotZ); // 头盔
+            drawTrue3DBox(x, y, z, 4, 12, 12, '#050505', '#000', '#111', tilt, env, rotZ); 
+            drawTrue3DBox(x, y, z+26, 4, 12, 12, '#050505', '#000', '#111', tilt, env, rotZ); 
+            drawTrue3DBox(x, y-6, z+8, 8, 12, 20, mCol, mSide, mTop, tilt, env, rotZ); 
+            drawTrue3DBox(x, y-10, z+28, 6, 8, 4, '#fff', '#ccc', '#fff', tilt, env, rotZ); 
+            drawTrue3DBox(x, y-18, z+12, 10, 14, 14, '#111', '#000', '#222', tilt, env, rotZ); 
+            drawTrue3DBox(x, y-28, z+18, 8, 8, 8, '#222', '#111', '#333', tilt, env, rotZ); 
         }
 
-        function draw3DAirplane(x, y, z, env) {
-            drawTrue3DBox(x, y, z, 20, 20, 80, '#eee', '#ccc', '#fff', 0, env); 
-            drawTrue3DBox(x, y+5, z+30, 120, 4, 20, '#ddd', '#bbb', '#eee', 0, env); 
-            drawTrue3DBox(x, y-10, z, 5, 20, 15, '#f05', '#c03', '#f36', 0, env); 
+        // 天空障碍物
+        function draw3DAirplane(x, y, z, env, rotZ=0) {
+            drawTrue3DBox(x, y, z, 20, 20, 80, '#eee', '#ccc', '#fff', 0, env, rotZ); 
+            drawTrue3DBox(x, y+5, z+30, 120, 4, 20, '#ddd', '#bbb', '#eee', 0, env, rotZ); 
+            drawTrue3DBox(x, y-10, z, 5, 20, 15, '#f05', '#c03', '#f36', 0, env, rotZ); 
         }
 
-        function draw3DHeli(x, y, z, env) {
-            drawTrue3DBox(x, y, z, 25, 25, 40, '#333', '#111', '#555', 0, env); 
-            drawTrue3DBox(x, y+10, z-30, 8, 8, 40, '#333', '#111', '#555', 0, env); 
-            let propW = (frameCount%10 < 5) ? 100 : 10, propL = (frameCount%10 < 5) ? 10 : 100;
-            drawTrue3DBox(x, y-25, z+10, propW, 2, propL, '#888', '#555', '#aaa', 0, env);
+        function draw3DMissile(x, y, z, env, rotZ=0) {
+            drawTrue3DBox(x, y, z, 8, 8, 30, '#cc0000', '#aa0000', '#ff3333', 0, env, rotZ);
+            drawTrue3DBox(x, y, z+30, 4, 4, 10, '#333', '#111', '#555', 0, env, rotZ);
+            let pJet = project(x, y, z);
+            if(pJet) {
+                ctx.fillStyle = '#ffaa00'; ctx.beginPath(); ctx.arc(pJet.sx, pJet.sy, 15*pJet.scale*Math.random()+5, 0, Math.PI*2); ctx.fill();
+            }
+        }
+
+        // 宇宙障碍物
+        function draw3DSatellite(x, y, z, env, rotZ=0) {
+            drawTrue3DBox(x, y, z, 20, 20, 20, '#aaa', '#888', '#ccc', 0, env, 0);
+            drawTrue3DBox(x-30, y, z+5, 40, 2, 10, '#05a', '#038', '#07c', 0, env, rotZ);
+            drawTrue3DBox(x+30, y, z+5, 40, 2, 10, '#05a', '#038', '#07c', 0, env, rotZ);
+        }
+
+        function draw3DMeteorite(x, y, z, env, rotZ=0) {
+            drawTrue3DBox(x, y, z, 30, 25, 30, '#432', '#210', '#543', 0, env, rotZ);
+            drawTrue3DBox(x-10, y-10, z-5, 20, 20, 20, '#321', '#100', '#432', 0, env, rotZ);
+            drawTrue3DBox(x+10, y+5, z+10, 25, 15, 25, '#543', '#321', '#654', 0, env, rotZ);
         }
 
         function drawItem(p, type) {
             let s = p.scale * 30; ctx.font = `${s}px Arial`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
             let icon = '';
             if (type === 'item_shield') icon = '💠';
-            if (type === 'item_fly') icon = '🚀';
-            if (type === 'item_speed') icon = '⚡'; 
-            if (type === 'coin') icon = '🪙';
+            else if (type === 'item_fly') icon = '🚀';
+            else if (type === 'item_speed') icon = '⚡'; 
+            else if (type === 'item_wings') icon = '🦋';
             ctx.fillText(icon, p.sx, p.sy);
         }
 
-        function drawProps(p, side, env, type) {
+        function drawProps(p, side, env, type, bAlpha) {
+            if (bAlpha <= 0 || isSpace) return; 
+            ctx.globalAlpha = bAlpha;
             let s = p.scale, poleW = 4*s, poleH = 140*s, armW = 45*s;
             ctx.fillStyle = env.nightFactor>0.3 ? '#111' : '#333'; ctx.fillRect(p.sx-poleW/2, p.sy-poleH, poleW, poleH);
             if (type === 'light') {
@@ -506,9 +553,10 @@
                 ctx.fillStyle = env.nightFactor>0.5?'#fff':'#ccc'; 
                 ctx.fillRect(p.sx-poleW/2-bW*0.3, bY+bH*0.25, bW*0.6, 5*s); ctx.fillRect(p.sx-poleW/2-bW*0.3, bY+bH*0.55, bW*0.4, 5*s);
             }
+            ctx.globalAlpha = 1.0;
         }
 
-        // 【修复起飞穿越：地表对象全局淡出】
+        // 深度排序混合渲染
         function drawObjects(env, bAlpha) {
             let renderList =[];
             if (!isFirstPerson) renderList.push({ type:'player', x:carX, y:playerY, z:camZ+playerZOffset, tilt:carVX });
@@ -519,30 +567,31 @@
 
             renderList.forEach(obj => {
                 let isPlayer = (obj.type === 'player');
-                let isGround = obj.y >= -20 && !isPlayer; 
-                if (isGround && bAlpha <= 0) return; // 飞到天上时，不渲染地上物体
+                let isGround = obj.y >= -20 && !isPlayer && !obj.type.startsWith('item'); 
+                if (isGround && (bAlpha <= 0 || isSpace)) return; // 飞天/宇宙时彻底不渲染地上障碍物
 
                 let p = project(obj.x, obj.y, obj.z);
                 if (p) {
                     if (isGround) ctx.globalAlpha = bAlpha;
                     else ctx.globalAlpha = 1.0;
 
-                    if (obj.type === 'light' || obj.type === 'sign') drawProps(p, obj.side, env, obj.type);
-                    else if (obj.type.startsWith('item') || obj.type === 'coin') drawItem(p, obj.type);
+                    if (obj.type === 'light' || obj.type === 'sign') drawProps(p, obj.side, env, obj.type, bAlpha);
+                    else if (obj.type.startsWith('item')) drawItem(p, obj.type);
                     else if (obj.type === 'truck') draw3DTruck(obj.x, obj.y, obj.z, obj.hue, isPlayer?obj.tilt:0, env, obj.rot||0);
                     else if (obj.type === 'motor') draw3DMotor(obj.x, obj.y, obj.z, obj.hue, isPlayer?obj.tilt:0, env, obj.rot||0);
-                    else if (obj.type === 'airplane') draw3DAirplane(obj.x, obj.y, obj.z, env);
-                    else if (obj.type === 'heli') draw3DHeli(obj.x, obj.y, obj.z, env);
-                    else {
-                        draw3DCar(obj.x, obj.y, obj.z, obj.type, obj.hue||340, obj.sat||100, isPlayer?obj.tilt:0, isPlayer, env, obj.rot||0);
-                    }
+                    else if (obj.type === 'airplane') draw3DAirplane(obj.x, obj.y, obj.z, env, obj.rot||0);
+                    else if (obj.type === 'missile') draw3DMissile(obj.x, obj.y, obj.z, env, obj.rot||0);
+                    else if (obj.type === 'sat') draw3DSatellite(obj.x, obj.y, obj.z, env, obj.rot||0);
+                    else if (obj.type === 'met') draw3DMeteorite(obj.x, obj.y, obj.z, env, obj.rot||0);
+                    else draw3DCar(obj.x, obj.y, obj.z, obj.type, obj.hue||340, obj.sat||100, isPlayer?obj.tilt:0, isPlayer, env, obj.rot||0);
+                    
                     ctx.globalAlpha = 1.0;
                 }
             });
         }
 
         // ===================================
-        // 【升级版第一人称超精美驾驶舱】
+        // 豪华第一人称驾驶舱
         // ===================================
         function drawCockpit(env) {
             ctx.fillStyle = '#080808'; 
@@ -561,6 +610,7 @@
                 ctx.beginPath(); ctx.moveTo(W*0.38, 175); ctx.lineTo(W*0.62, 175); ctx.stroke(); ctx.shadowBlur = 0;
             }
 
+            // 碳纤维弧形仪表台
             ctx.fillStyle = '#111';
             ctx.beginPath(); ctx.moveTo(0, hoodBase-5); ctx.quadraticCurveTo(W/2, 185, W, hoodBase-5); ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.fill();
             ctx.strokeStyle = 'rgba(255,255,255,0.03)'; ctx.lineWidth = 1;
@@ -598,7 +648,7 @@
             ctx.fillStyle = '#0f0'; ctx.fillRect(rx+rw/2-2, ry+rh-10, 4, 4); 
             
             // 帅气的翔字
-            ctx.fillStyle = 'rgba(0, 255, 0, 0.4)'; 
+            ctx.fillStyle = 'rgba(0, 255, 0, 0.5)'; 
             ctx.font = 'bold 20px "Microsoft YaHei", sans-serif'; 
             ctx.textAlign = 'right'; ctx.textBaseline = 'alphabetic';
             ctx.fillText('翔', rx + rw - 5, ry + 22);
@@ -608,7 +658,7 @@
                     let mapX = rx + rw/2 + (ob.x - carX) * 0.15;
                     let mapY = ry + rh - 10 - (ob.z - (camZ+playerZOffset)) * 0.05;
                     if(mapX>rx && mapX<rx+rw && mapY>ry && mapY<ry+rh) {
-                        ctx.fillStyle = (ob.type==='coin' || ob.type.startsWith('item')) ? '#0ff' : '#f00';
+                        ctx.fillStyle = (ob.type.startsWith('item')) ? '#0ff' : '#f00';
                         ctx.fillRect(mapX, mapY, 3, 3);
                     }
                 }
@@ -617,7 +667,6 @@
             // 拥有超强体积感的缝线真皮方向盘
             ctx.save(); ctx.translate(W / 2, H + 25); ctx.rotate(carVX * 0.13); 
             
-            // 外轮廓阴影与底座
             ctx.strokeStyle = '#050505'; ctx.lineWidth = 26; ctx.beginPath(); ctx.arc(0, 0, 85, 0, Math.PI*2); ctx.stroke();
             ctx.strokeStyle = '#181818'; ctx.lineWidth = 20; ctx.beginPath(); ctx.arc(0, 0, 85, 0, Math.PI*2); ctx.stroke();
             
@@ -639,16 +688,14 @@
             ctx.beginPath(); ctx.moveTo(-32, -3); ctx.lineTo(-78, -10); ctx.lineTo(-78, 0); ctx.lineTo(-32, 2); ctx.fill(); 
             ctx.beginPath(); ctx.moveTo(32, -3); ctx.lineTo(78, -10); ctx.lineTo(78, 0); ctx.lineTo(32, 2); ctx.fill(); 
 
-            // 喇叭中枢
             ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(0, 0, 32, 0, Math.PI*2); ctx.fill();
             ctx.fillStyle = '#080808'; ctx.beginPath(); ctx.arc(0, 0, 28, 0, Math.PI*2); ctx.fill(); 
             ctx.fillStyle = '#ff0055'; ctx.beginPath(); ctx.arc(0, 0, 8, 0, Math.PI*2); ctx.fill();
-
             ctx.restore();
         }
 
         // ============================
-        // 游戏核心更新逻辑
+        // 游戏核心逻辑
         // ============================
         function update() {
             if (speedTimer > 0) speedTimer--; 
@@ -659,9 +706,10 @@
             document.getElementById('scoreVal').innerText = "SCORE: " + score;
             
             let status = "";
-            if (isFlying) status += "🚀 FLIGHT[" + Math.floor(flyTimer/60) + "s] ";
-            if (isShielded) status += "💠 SHIELD[" + Math.floor(shieldTimer/60) + "s] ";
-            if (speedTimer > 0) status += "⚡ BOOST[" + Math.floor(speedTimer/60) + "s] ";
+            if (isSpace) status += "🌌 SPACE WARP ";
+            else if (isFlying) status += "🚀 FLIGHT ";
+            if (isShielded) status += "💠 SHIELD ";
+            if (speedTimer > 0) status += "⚡ BOOST ";
             document.getElementById('statusVal').innerText = status;
 
             if (gameSpeed < speedCap) gameSpeed += 0.002; 
@@ -674,32 +722,36 @@
             if (carX < -maxCarX) { carX = -maxCarX; carVX = 0; }
             if (carX > maxCarX) { carX = maxCarX; carVX = 0; }
 
-            if (isFlying) {
+            // 物理跃迁高度计算
+            if (spaceTimer > 0) {
+                spaceTimer--;
+                playerY += (-300 - playerY) * 0.05; // 升入太空
+                if (spaceTimer <= 0) { isSpace = false; bonusScore += 1500; }
+            } else if (flyTimer > 0) {
                 flyTimer--;
-                playerY += (-160 - playerY) * 0.05; 
-                if (flyTimer <= 0) { isFlying = false; bonusScore += 1000; }
+                playerY += (-160 - playerY) * 0.05; // 云端飞行
+                if (flyTimer <= 0) { isFlying = false; bonusScore += 800; }
             } else {
-                playerY += (0 - playerY) * 0.05; 
+                playerY += (0 - playerY) * 0.05; // 降落
             }
 
+            isFlying = playerY < -100; 
+            isSpace = playerY < -200;
             if (isShielded) { shieldTimer--; if(shieldTimer <= 0) isShielded = false; }
 
             if (isFirstPerson) {
-                renderCamX = carX * 0.75; 
-                renderCamY = playerY - 25;         
-                renderCamZ = camZ + playerZOffset - 5; 
+                renderCamX = carX * 0.75; renderCamY = playerY - 25; renderCamZ = camZ + playerZOffset - 5; 
             } else {
-                renderCamX = 0;
-                renderCamY = playerY - 60;
-                renderCamZ = camZ;
+                renderCamX = 0; renderCamY = playerY - 60; renderCamZ = camZ;
             }
 
             frameCount++;
             let spawnRate = Math.max(30, baseSpawnRate - Math.floor(score / 100));
-            if (frameCount % spawnRate === 0) {
+            
+            // 地面生成
+            if (!isSpace && frameCount % spawnRate === 0) {
                 let xPos = (Math.random() * 260) - 130; 
                 let type = 'sedan', rnd = Math.random();
-                
                 if (rnd < 0.2) type = 'truck';
                 else if (rnd < 0.4) type = 'motor';
                 else if (rnd < 0.7) type = 'sports';
@@ -708,47 +760,59 @@
                 if (itemRoll < 0.02) type = 'item_speed';
                 else if (itemRoll < 0.04) type = 'item_fly';
                 else if (itemRoll < 0.06) type = 'item_shield';
+                else if (itemRoll < 0.08) type = 'item_wings'; // 地上也能刷出翅膀
 
                 obstacles.push({ x: xPos, y: 0, z: camZ + DRAW_DIST, type: type, hue: Math.random()*360, 
                                  sat: type==='truck'?30:80, speed: type==='truck'?3.5:5.5, rot: 0, isTossed: false });
             }
 
-            if (isFlying && frameCount % 30 === 0) {
+            // 天空/太空生成
+            if ((isFlying || isSpace) && frameCount % 25 === 0) {
                 let xPos = (Math.random() * 400) - 200;
-                let rnd = Math.random();
-                let type = rnd < 0.6 ? 'coin' : (rnd < 0.8 ? 'airplane' : 'heli');
-                obstacles.push({ x: xPos, y: -160, z: camZ + DRAW_DIST + 500, type: type, speed: type==='coin'?0:-10, rot:0, isTossed: false });
+                let rnd = Math.random(), type;
+                if (rnd < 0.1) type = 'item_speed';
+                else if (rnd < 0.2) type = 'item_shield';
+                else if (rnd < 0.3) type = 'item_wings';
+                else if (rnd < 0.6) type = 'missile'; // 导弹
+                else type = isSpace ? (Math.random() > 0.5 ? 'sat' : 'met') : 'airplane';
+
+                obstacles.push({ x: xPos, y: playerY, z: camZ + DRAW_DIST + 500, type: type, speed: (type==='missile'?-15:(type.startsWith('item')?0:-10)), rot:0, isTossed: false });
             }
 
             if (camZ - lastPropZ > 300) {
                 props.push({ type: 'light', x: -ROAD_WIDTH - 20, y: 0, z: camZ + DRAW_DIST, side: -1 });
                 props.push({ type: 'light', x: ROAD_WIDTH + 20, y: 0, z: camZ + DRAW_DIST, side: 1 });
-                if (Math.floor(camZ / 300) % 3 === 0) props.push({ type: 'sign', x: ROAD_WIDTH + 50, y: 0, z: camZ + DRAW_DIST, side: 1 });
                 lastPropZ = camZ;
             }
 
             let playerZ = camZ + playerZOffset;
 
+            // 碰撞与物理
             for (let i = obstacles.length - 1; i >= 0; i--) {
                 let ob = obstacles[i];
-                
                 if (ob.isTossed) {
                     ob.x += ob.vx; ob.y += ob.vy; ob.z += ob.vz;
                     ob.vy += 0.8; ob.rot += 0.5; 
                 } else {
                     ob.z += ob.speed; 
-                    // 修改了碰撞体积，使之与新模型匹配
-                    let hitX = 30; if(ob.type==='truck') hitX=40; if(ob.type==='motor') hitX=15;
-                    let hitZ = 30; if(ob.type==='truck') hitZ=70; if(ob.type==='airplane') hitZ=80;
+                    if (ob.type === 'sat' || ob.type === 'met') ob.rot += 0.05; // 陨石卫星自转
+
+                    let hitX = 30, hitZ = 30; 
+                    if(ob.type==='truck') { hitX=40; hitZ=70; }
+                    if(ob.type==='motor') hitX=15;
+                    if(ob.type==='airplane' || ob.type==='sat' || ob.type==='met') { hitX=50; hitZ=50; }
+
+                    // 碰撞检测：忽略飞天时的地面障碍物
+                    let isGroundOb = ob.y >= -20 && !ob.type.startsWith('item');
+                    if (isGroundOb && isFlying) continue; 
 
                     if (Math.abs(ob.z - playerZ) < hitZ && Math.abs(ob.x - carX) < hitX && Math.abs(ob.y - playerY) < 40) {
-                        
                         if (ob.type === 'item_fly') { isFlying = true; flyTimer = 600; bonusScore += 500; obstacles.splice(i,1); }
+                        else if (ob.type === 'item_wings') { isSpace = true; spaceTimer = 800; bonusScore += 1000; obstacles.splice(i,1); }
                         else if (ob.type === 'item_shield') { isShielded = true; shieldTimer = 800; bonusScore += 500; obstacles.splice(i,1); }
                         else if (ob.type === 'item_speed') { speedTimer = 300; bonusScore += 300; obstacles.splice(i,1); } 
-                        else if (ob.type === 'coin') { bonusScore += 200; obstacles.splice(i,1); }
                         else {
-                            if (isShielded && ob.y >= -10) { 
+                            if (isShielded) { 
                                 ob.isTossed = true;
                                 ob.vx = (ob.x - carX)*0.2; if(Math.abs(ob.vx)<2) ob.vx = Math.random()>0.5?5:-5;
                                 ob.vy = -15; ob.vz = 5; bonusScore += 300;
@@ -770,7 +834,9 @@
             if (gameState === 'PLAYING') {
                 update();
                 ctx.clearRect(0, 0, W, H);
-                let timeCycle = (frameCount / 2500); let env = getEnvColors(timeCycle);
+                // 加快了黑夜到来的速度：原先 /2500，现在 /1000
+                let timeCycle = (frameCount / 1000); 
+                let env = getEnvColors(timeCycle);
                 
                 let flyProgress = Math.min(1, Math.max(0, -playerY / 120)); 
                 let bAlpha = 1 - flyProgress; 

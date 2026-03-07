@@ -2,24 +2,28 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>阿翔飞车极速版</title>
+    <title>3D 阿翔飞车极速版</title>
     <style>
         body {
             margin: 0; padding: 0; background-color: #05000a; color: #fff;
             display: flex; flex-direction: column; align-items: center;
+            /* 下面两行是垂直居中的魔法 */
+            justify-content: center; 
+            min-height: 100vh;
             font-family: 'Courier New', Courier, monospace; overflow: hidden;
             touch-action: none; 
         }
         h1 {
             color: #0ff; text-shadow: 0 0 10px #0ff, 0 0 20px #00aaff;
-            margin-top: 10px; margin-bottom: 5px;
+            margin-top: 0; margin-bottom: 5px; font-size: 26px;
         }
-        p { margin-top: 0; color: #ff00ff; text-shadow: 0 0 5px #ff00ff; font-size: 14px;}
+        p { margin-top: 0; color: #ff00ff; text-shadow: 0 0 5px #ff00ff; font-size: 13px;}
         
-        #game-wrapper { position: relative; margin-top: 5px; display: flex; flex-direction: column; align-items: center; }
+        #game-wrapper { position: relative; display: flex; flex-direction: column; align-items: center; width: 100%; }
         
         canvas {
-            width: 800px; height: 600px; max-width: 100vw;
+            width: 800px; max-width: 96vw; /* 两边留一点点缝隙，防误触边缘 */
+            height: auto; aspect-ratio: 4/3; /* 保持完美的街机画面比例 */
             background-color: #000; image-rendering: pixelated; 
             border: 4px solid #ff0055; border-radius: 8px;
             box-shadow: 0 0 40px #ff0055, 0 0 20px #0ff inset;
@@ -27,40 +31,41 @@
         
         #scoreBoard {
             position: absolute; top: 15px; left: 20px;
-            font-size: 24px; font-weight: bold; color: #0ff;
+            font-size: 20px; font-weight: bold; color: #0ff;
             text-shadow: 0 0 8px #0ff; pointer-events: none; display: none;
         }
         
         .overlay {
             position: absolute; top: 40%; left: 50%;
             transform: translate(-50%, -50%); text-align: center;
-            background: rgba(10, 0, 20, 0.85); padding: 40px;
+            background: rgba(10, 0, 20, 0.85); padding: 30px;
             border: 4px dashed #0ff; box-shadow: 0 0 20px #0ff;
-            display: none; width: 340px; z-index: 10;
+            display: none; width: 80%; max-width: 340px; z-index: 10;
         }
         
         #start-screen { display: block; }
-        .blink { animation: blinker 1.5s linear infinite; color: #ff00ff; font-weight: bold; font-size: 20px; text-shadow: 0 0 10px #ff00ff; }
+        .blink { animation: blinker 1.5s linear infinite; color: #ff00ff; font-weight: bold; font-size: 18px; text-shadow: 0 0 10px #ff00ff; }
         @keyframes blinker { 50% { opacity: 0; } }
 
-        /* 底部触控按钮组 */
+        /* ======== 优化后的超大触控按钮 ======== */
         #controls {
             display: flex; justify-content: space-between; gap: 15px;
-            margin-top: 15px; width: 600px; max-width: 95vw;
+            margin-top: 25px; width: 650px; max-width: 96vw;
         }
         .ctrl-btn {
             flex: 1; background: rgba(10,0,20,0.8); color: #0ff; 
-            border: 3px solid #0ff; border-radius: 8px;
-            padding: 12px 0; font-size: 20px; font-weight: bold; 
+            border: 4px solid #0ff; border-radius: 12px;
+            padding: 20px 0; font-size: 24px; font-weight: bold; 
             font-family: inherit; box-shadow: 0 0 15px #0ff inset, 0 0 15px #0ff;
-            user-select: none; cursor: pointer; text-align: center;
+            user-select: none; -webkit-user-select: none; /* 防止手机连按选中文本 */
+            cursor: pointer; text-align: center;
             transition: all 0.1s;
         }
         .ctrl-btn:active { background: #0ff; color: #000; box-shadow: 0 0 30px #0ff; transform: scale(0.95); }
         
         .cam-btn {
             flex: 0.5; background: rgba(50,50,50,0.8); color: #ccc; 
-            border-color: #888; box-shadow: none; font-size: 16px;
+            border-color: #888; box-shadow: none; font-size: 18px;
         }
         .cam-btn.active { color: #0ff; border-color: #0ff; box-shadow: 0 0 10px #0ff inset, 0 0 10px #0ff; }
     </style>
@@ -68,26 +73,26 @@
 <body>
 
     <h1>✦ NEON CITY RACER ✦</h1>
-    <p>A/D键 或 底部按钮 变道 | V键 切换视角 | 空格键 开始</p>
+    <p>点击按钮变道 | 切换视角体验第一人称</p>
 
     <div id="game-wrapper">
         <canvas id="gameCanvas" width="400" height="300"></canvas>
         <div id="scoreBoard">DISTANCE: <span id="scoreVal">0</span></div>
         
         <div id="start-screen" class="overlay">
-            <h2 style="color: #0ff; text-shadow: 0 0 10px #0ff; font-size: 32px; margin: 0 0 20px 0;">SYSTEM READY</h2>
-            <p class="blink">[ 按空格或按钮起步 ]</p>
+            <h2 style="color: #0ff; text-shadow: 0 0 10px #0ff; font-size: 28px; margin: 0 0 20px 0;">SYSTEM READY</h2>
+            <p class="blink">[ 点击下方按钮起步 ]</p>
         </div>
 
         <div id="game-over-screen" class="overlay">
             <h2 style="color: #ff0055; text-shadow: 0 0 10px #ff0055; font-size: 32px; margin: 0;">CRASHED!</h2>
             <p style="color: #fff; font-size: 18px; margin-top: 15px;">行驶里程: <span id="finalScore" style="color: #0ff;">0</span> m</p>
-            <p class="blink" style="margin-top: 20px;">[ 按空格或按钮重来 ]</p>
+            <p class="blink" style="margin-top: 20px;">[ 点击按钮重来 ]</p>
         </div>
 
         <div id="controls">
             <div id="btnLeft" class="ctrl-btn">◀ LEFT</div>
-            <div id="btnCam" class="ctrl-btn cam-btn">切换视角</div>
+            <div id="btnCam" class="ctrl-btn cam-btn">视角</div>
             <div id="btnRight" class="ctrl-btn">RIGHT ▶</div>
         </div>
     </div>
@@ -96,20 +101,17 @@
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         
-        // ==== 3D引擎常量 ====
         const W = canvas.width, H = canvas.height;
         const HORIZON = 130, FOCAL = 160;
         const ROAD_WIDTH = 150, SEG_LENGTH = 40, DRAW_DIST = 1600;
         const LANES =[-110, -35, 35, 110];
 
-        // ==== 游戏状态变量 ====
         let animationId, gameState = 'START';  
         let camZ = 0, gameSpeed = 7, score = 0, frameCount = 0;
         let carX = 0, carVX = 0, playerZOffset = 80;   
         let obstacles = [], props =[], lastPropZ = 0;
         let stars =[], buildings =[];
 
-        // ==== 渲染视口变量 (支持第一人称) ====
         let isFirstPerson = false;
         let renderCamX = 0, renderCamY = -60, renderCamZ = 0;
 
@@ -135,16 +137,19 @@
         });
 
         const btnL = document.getElementById('btnLeft'), btnR = document.getElementById('btnRight'), btnC = document.getElementById('btnCam');
+        
+        // 修改了点击事件，增加了 e.preventDefault() 防止手机双击放大
         const pressL = (e) => { e.preventDefault(); keys.a = true; startGameTrigger(); };
         const releaseL = (e) => { e.preventDefault(); keys.a = false; };
         const pressR = (e) => { e.preventDefault(); keys.d = true; startGameTrigger(); };
         const releaseR = (e) => { e.preventDefault(); keys.d = false; };
 
-        btnL.addEventListener('mousedown', pressL); btnL.addEventListener('touchstart', pressL);
-        window.addEventListener('mouseup', releaseL); btnL.addEventListener('touchend', releaseL);
-        btnR.addEventListener('mousedown', pressR); btnR.addEventListener('touchstart', pressR);
-        window.addEventListener('mouseup', releaseR); btnR.addEventListener('touchend', releaseR);
+        btnL.addEventListener('mousedown', pressL); btnL.addEventListener('touchstart', pressL, {passive: false});
+        window.addEventListener('mouseup', releaseL); btnL.addEventListener('touchend', releaseL, {passive: false});
+        btnR.addEventListener('mousedown', pressR); btnR.addEventListener('touchstart', pressR, {passive: false});
+        window.addEventListener('mouseup', releaseR); btnR.addEventListener('touchend', releaseR, {passive: false});
         btnC.addEventListener('mousedown', (e) => { e.preventDefault(); toggleCamera(); });
+        btnC.addEventListener('touchstart', (e) => { e.preventDefault(); toggleCamera(); }, {passive: false});
 
         function project(x, y, z) {
             let zDiff = z - renderCamZ;
@@ -437,16 +442,16 @@
         }
 
         // ==========================================
-        // 【全新：高精度拟真第一人称驾驶舱】
+        // 第一人称驾驶舱绘制
         // ==========================================
         function drawCockpit(env) {
-            // 1. A柱与车顶框 (增强包围感)
+            // A柱与车顶框
             ctx.fillStyle = '#080808';
-            ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(45, 0); ctx.lineTo(15, 180); ctx.lineTo(0, 180); ctx.fill(); // 左A柱
-            ctx.beginPath(); ctx.moveTo(W,0); ctx.lineTo(W-45, 0); ctx.lineTo(W-15, 180); ctx.lineTo(W, 180); ctx.fill(); // 右A柱
-            ctx.fillRect(0, 0, W, 20); // 车顶前沿
+            ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(45, 0); ctx.lineTo(15, 180); ctx.lineTo(0, 180); ctx.fill(); 
+            ctx.beginPath(); ctx.moveTo(W,0); ctx.lineTo(W-45, 0); ctx.lineTo(W-15, 180); ctx.lineTo(W, 180); ctx.fill(); 
+            ctx.fillRect(0, 0, W, 20); 
 
-            // 2. 左右侧后视镜 (带天空反光)
+            // 左右侧后视镜
             ctx.fillStyle = '#050505';
             ctx.beginPath(); ctx.moveTo(0, 150); ctx.lineTo(35, 160); ctx.lineTo(35, 210); ctx.lineTo(0, 220); ctx.fill(); 
             ctx.fillStyle = env.skyBot;
@@ -457,16 +462,15 @@
             ctx.fillStyle = env.skyBot;
             ctx.beginPath(); ctx.moveTo(W, 155); ctx.lineTo(W-30, 164); ctx.lineTo(W-30, 206); ctx.lineTo(W, 215); ctx.fill(); 
 
-            // 3. 中央后视镜
-            ctx.fillStyle = '#050505'; ctx.fillRect(W/2 - 5, 20, 10, 15); // 支撑杆
-            ctx.fillStyle = '#151515'; ctx.fillRect(W/2 - 45, 30, 90, 25); // 镜框
-            ctx.fillStyle = env.skyBot; ctx.fillRect(W/2 - 42, 33, 84, 19); // 反光镜片
+            // 中央后视镜
+            ctx.fillStyle = '#050505'; ctx.fillRect(W/2 - 5, 20, 10, 15); 
+            ctx.fillStyle = '#151515'; ctx.fillRect(W/2 - 45, 30, 90, 25); 
+            ctx.fillStyle = env.skyBot; ctx.fillRect(W/2 - 42, 33, 84, 19); 
 
-            // 4. 立体肌肉机盖 (带荧光修饰线)
+            // 立体机盖
             let hoodBase = 210;
             ctx.fillStyle = `hsl(340, 80%, ${15 + env.nightFactor*5}%)`;
             ctx.beginPath(); ctx.moveTo(0, hoodBase); ctx.lineTo(W, hoodBase); ctx.lineTo(W*0.8, 175); ctx.lineTo(W*0.2, 175); ctx.fill();
-            // 机盖隆起肌肉线
             ctx.fillStyle = `hsl(340, 80%, ${10 + env.nightFactor*5}%)`;
             ctx.beginPath(); ctx.moveTo(W*0.3, hoodBase); ctx.lineTo(W*0.38, 175); ctx.lineTo(W*0.33, 175); ctx.lineTo(W*0.25, hoodBase); ctx.fill();
             ctx.beginPath(); ctx.moveTo(W*0.7, hoodBase); ctx.lineTo(W*0.62, 175); ctx.lineTo(W*0.67, 175); ctx.lineTo(W*0.75, hoodBase); ctx.fill();
@@ -478,47 +482,39 @@
                 ctx.shadowBlur = 0;
             }
 
-            // 5. 弧形仪表台与 HUD 数字测速仪
+            // 弧形仪表台与HUD
             ctx.fillStyle = '#111';
             ctx.beginPath(); ctx.moveTo(0, hoodBase-5); ctx.quadraticCurveTo(W/2, 185, W, hoodBase-5); ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.fill();
             
-            // 仪表台霓虹边缘
             ctx.strokeStyle = '#0ff'; ctx.lineWidth = 2;
             if(env.nightFactor > 0.5) { ctx.shadowBlur = 8; ctx.shadowColor = '#0ff'; }
             ctx.beginPath(); ctx.moveTo(0, hoodBase-3); ctx.quadraticCurveTo(W/2, 187, W, hoodBase-3); ctx.stroke();
             ctx.shadowBlur = 0;
 
-            // 数字 HUD
             ctx.fillStyle = '#050505'; ctx.fillRect(W/2 - 40, 195, 80, 28);
             ctx.strokeStyle = '#222'; ctx.strokeRect(W/2 - 40, 195, 80, 28);
             ctx.fillStyle = '#0ff'; ctx.font = 'bold 16px Courier New'; ctx.textAlign = 'center';
-            // 实时同步速度数值
             ctx.fillText(Math.floor(gameSpeed * 15), W/2, 210);
             ctx.font = '10px Courier New'; ctx.fillText("KM/H", W/2, 220);
 
-            // 6. 物理联动赛车方向盘
+            // 方向盘
             ctx.save();
-            ctx.translate(W / 2, H + 25); // 定位在画面正下方
-            ctx.rotate(carVX * 0.13); // 根据速度物理转动！
+            ctx.translate(W / 2, H + 25); 
+            ctx.rotate(carVX * 0.13); 
 
-            // 粗壮外圈
             ctx.strokeStyle = '#151515'; ctx.lineWidth = 20;
             ctx.beginPath(); ctx.arc(0, 0, 85, 0, Math.PI*2); ctx.stroke();
-            // 内侧真皮反光
             ctx.strokeStyle = '#2a2a2a'; ctx.lineWidth = 6;
             ctx.beginPath(); ctx.arc(0, 0, 85, 0, Math.PI*2); ctx.stroke();
             
-            // 喇叭盖与车标
             ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(0, 0, 32, 0, Math.PI*2); ctx.fill();
             ctx.fillStyle = '#ff0055'; ctx.beginPath(); ctx.arc(0, 0, 8, 0, Math.PI*2); ctx.fill();
 
-            // 三幅式运动支撑条
             ctx.fillStyle = '#151515';
             ctx.beginPath(); ctx.moveTo(-32, -5); ctx.lineTo(-80, -15); ctx.lineTo(-80, 15); ctx.lineTo(-32, 10); ctx.fill(); 
             ctx.beginPath(); ctx.moveTo(32, -5); ctx.lineTo(80, -15); ctx.lineTo(80, 15); ctx.lineTo(32, 10); ctx.fill(); 
             ctx.beginPath(); ctx.moveTo(-15, 30); ctx.lineTo(-20, 80); ctx.lineTo(20, 80); ctx.lineTo(15, 30); ctx.fill(); 
 
-            // 方向盘顶部赛车专属回正标 (Racing Stripe)
             ctx.strokeStyle = '#0ff'; ctx.lineWidth = 20;
             ctx.beginPath(); ctx.arc(0, 0, 85, -Math.PI/2 - 0.15, -Math.PI/2 + 0.15); ctx.stroke();
 
@@ -619,5 +615,4 @@
 
     </script>
 </body>
-
 </html>

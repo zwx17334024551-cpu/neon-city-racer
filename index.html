@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>3D 赛博飞车 - 究极切片防穿模典藏版</title>
+    <title>阿翔飞车极速版</title>
     <style>
         body {
             margin: 0; padding: 0; background-color: #05000a; color: #fff;
@@ -114,7 +114,7 @@
 <body>
 
     <h1>✦ NEON MULTIVERSE ✦</h1>
-    <p>究极 Z 轴切片无破面版 | 火箭实体升空 | 奢华发光内饰 | 完整全生态</p>
+    <p>切换游戏难度以开始 马上奔腾</p>
 
     <div id="canvas-wrapper">
         <canvas id="gameCanvas" width="800" height="450"></canvas>
@@ -133,7 +133,7 @@
             <h2 style="color: #00ffff; text-shadow: 0 0 15px #00ffff; margin: 0 0 20px 0; font-size: 36px;">SYSTEM READY</h2>
             <div class="diff-container">
                 <button class="diff-btn" data-diff="noob" onclick="setDiff('noob')">菜鸟</button>
-                <button class="diff-btn active" data-diff="racing" onclick="setDiff('racing')">飙车</button>
+                <button class="diff-btn active" data-diff="racing" onclick="setDiff('racing')">老手</button>
                 <button class="diff-btn" data-diff="madhouse" onclick="setDiff('madhouse')">疯人院</button>
             </div>
             <button class="ctrl-btn" style="width: 100%; font-size: 24px; box-shadow: 0 0 20px #00ffff;" onclick="initGame()">🔥 启动引擎 🔥</button>
@@ -146,7 +146,7 @@
             <p style="color: #aaa; font-size: 16px; margin: 0 0 20px 0;">历史最高: <span id="recordScore" style="color: #ffd700;">0</span></p>
             <div class="diff-container" style="margin-top: 15px;">
                 <button class="diff-btn" data-diff="noob" onclick="setDiff('noob')">菜鸟</button>
-                <button class="diff-btn active" data-diff="racing" onclick="setDiff('racing')">飙车</button>
+                <button class="diff-btn active" data-diff="racing" onclick="setDiff('racing')">老手</button>
                 <button class="diff-btn" data-diff="madhouse" onclick="setDiff('madhouse')">疯人院</button>
             </div>
             <button id="real-restart-btn" onclick="initGame()">🔥 再飙一次 🔥</button>
@@ -431,8 +431,8 @@
 
         function getScoreTitle(s) {
             if (s < 1500) return { t: "马路杀手 💀", c: "#aaaaaa" };
-            if (s < 3500) return { t: "见习车手 🚗", c: "#ffffff" };
-            if (s < 7000) return { t: "秋名山神 🏎️", c: "#00ff00" };
+            if (s < 3500) return { t: "见习车王 🚗", c: "#ffffff" };
+            if (s < 7000) return { t: "秋名山车神 🏎️", c: "#00ff00" };
             if (s < 12000) return { t: "云端征服者 ✈️", c: "#00ffff" };
             if (s < 20000) return { t: "曲率漫步者 🌌", c: "#ff00ff" };
             return { t: "星际传奇 🌟", c: "#ffd700" };
@@ -1580,3 +1580,4 @@
     </script>
 </body>
 </html>
+
